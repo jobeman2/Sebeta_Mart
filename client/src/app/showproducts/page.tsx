@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Heart, ShoppingCart } from "lucide-react";
+import { useRouter } from "next/navigation"; // <-- import router
 
 export interface Product {
   id: number;
@@ -14,6 +15,7 @@ export interface Product {
 }
 
 export default function ProductsGrid() {
+  const router = useRouter(); // <-- initialize router
   const [products, setProducts] = useState<Product[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [loading, setLoading] = useState(true);
@@ -38,32 +40,33 @@ export default function ProductsGrid() {
     setActiveCategory(category);
   };
 
+  const handleAddToCart = (product: Product) => {
+    console.log(`Added ${product.name} to cart`);
+  };
+
   const filteredProducts =
     activeCategory === "All"
       ? products
       : products.filter((p) => p.category === activeCategory);
 
-  if (loading)
-    return <p className="p-6 text-gray-500 text-center">Loading products...</p>;
-  if (products.length === 0)
-    return <p className="p-6 text-gray-500 text-center">No products found.</p>;
+  if (loading) return <p className="p-6 text-gray-600">Loading products...</p>;
+  if (products.length === 0) return <p className="p-6 text-gray-600">No products found.</p>;
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      {/* Header + Category Tabs */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <div className="flex justify-between items-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900">All Products</h2>
-
         <div className="flex gap-4 text-sm uppercase font-medium">
           {["All", "Food & Drinks", "Spices", "Crafts"].map((category) => (
             <button
               key={category}
               onClick={() => handleCategoryChange(category)}
-              className={`px-3 py-1 rounded-full transition ${
+              className={`${
                 activeCategory === category
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+                  ? "text-blue-600 border-b-2 border-blue-600"
+                  : "text-gray-700"
+              } uppercase`}
             >
               {category}
             </button>
@@ -76,46 +79,41 @@ export default function ProductsGrid() {
         {filteredProducts.map((product) => (
           <div
             key={product.id}
-            className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 flex flex-col"
+            className="bg-white border border-[#EBEBEB] rounded-lg transition hover:shadow-md"
           >
-            {/* Image */}
-            <div className="relative h-56 w-full bg-gray-100 overflow-hidden rounded-t-xl">
+            <div className="h-56 flex justify-center items-center overflow-hidden rounded-t-lg bg-gray-100">
               {product.image_url ? (
                 <img
                   src={`http://localhost:5000/${product.image_url}`}
-                  alt={product.category}
-                  className="object-cover w-full h-full transition-transform duration-500 hover:scale-105"
+                  alt={product.name}
+                  className="object-cover w-full h-full"
                 />
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  No Image
-                </div>
+                <div className="text-gray-400">No Image</div>
               )}
+            </div>
 
-              {/* Action Icons */}
-              <div className="absolute top-3 right-3 flex flex-col gap-2">
-                <button className="bg-white p-2 rounded-full shadow hover:bg-gray-50 transition">
-                  <Heart size={16} className="text-red-500" />
-                </button>
-                <button className="bg-white p-2 rounded-full shadow hover:bg-gray-50 transition">
-                  <ShoppingCart size={16} className="text-gray-700" />
+            <div className="p-4 flex flex-col gap-2">
+              <div className="text-sm text-gray-500">{product.category}</div>
+              <h3 className="text-lg font-semibold text-gray-800">{product.name}</h3>
+              <p className="text-[#EF837B] font-medium">ETB {product.price}</p>
+
+              <div className="flex justify-between items-center mt-4">
+                {/* VIEW BUTTON */}
+                <button
+                  onClick={() => router.push(`/product/${product.id}`)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
+                >
+                  View
                 </button>
               </div>
             </div>
 
-            {/* Product Info */}
-            <div className="p-4 flex flex-col gap-2 flex-grow">
-              <p className="text-sm text-gray-500">{product.category}</p>
-              <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
-              <p className="text-blue-600 font-semibold">ETB {product.price}</p>
-            </div>
-
-            {/* Seller Info */}
-            <div className="flex items-center p-4 bg-gray-50 gap-3 border-t border-gray-100">
+            <div className="flex items-center p-4 bg-gray-50 gap-3">
               <img
                 src={product.sellerImage}
                 alt={product.sellerName}
-                className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                className="w-10 h-10 rounded-full"
               />
               <span className="text-sm font-medium text-gray-700">{product.sellerName}</span>
             </div>
