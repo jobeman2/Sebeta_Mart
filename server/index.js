@@ -24,6 +24,14 @@ app.use("/auth/login", require("./routes/auth/login"));
 app.use("/auth/logout", require("./routes/auth/logout"));
 app.use("/sellers", require("./routes/seller/seller"));
 app.use("/products", require("./routes/product/products"));
+app.use("/categories", require("./routes/product/categories"));
+app.use("/subcategories", require("./routes/product/subcategories"));
+app.use("/brands", require("./routes/product/brands"));
+app.use("/product", require("./routes/product/singleproduct"));
+app.use("/orders", require("./routes/orders/orders"));
+
+// NEW: All products route for frontend product listing
+app.use("/productlist", require("./routes/product/productlist"));
 
 // Import auth middleware
 const auth = require("./middleware/auth");

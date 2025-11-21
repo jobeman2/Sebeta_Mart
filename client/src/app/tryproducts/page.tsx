@@ -11,10 +11,20 @@ export default function AddProductPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [stock, setStock] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
+  const [usage, setUsage] = useState("");
+  const [status, setStatus] = useState("active");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [products, setProducts] = useState<any[]>([]);
+
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
+  const [brandId, setBrandId] = useState("");
 
   // Fetch seller info
   useEffect(() => {
@@ -40,8 +50,7 @@ export default function AddProductPage() {
       try {
         const res = await fetch(`http://localhost:5000/products/seller/${sellerId}`);
         const data = await res.json();
-        if (res.ok || res.status === 200) setProducts(data);
-        else setProducts([]);
+        setProducts(data);
       } catch (err) {
         console.error(err);
         setProducts([]);
@@ -49,6 +58,41 @@ export default function AddProductPage() {
     };
     fetchProducts();
   }, [sellerId]);
+
+  // Fetch categories, subcategories, brands
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const [catRes, subRes, brandRes] = await Promise.all([
+          fetch("http://localhost:5000/categories"),
+          fetch("http://localhost:5000/subcategories"),
+          fetch("http://localhost:5000/brands"),
+        ]);
+        setCategories(await catRes.json());
+        setSubcategories(await subRes.json());
+        setBrands(await brandRes.json());
+      } catch (err) {
+        console.error("Failed to fetch options", err);
+      }
+    };
+    fetchOptions();
+  }, []);
+
+  // Preview images
+  useEffect(() => {
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setFilePreviews(previews);
+
+    // Revoke object URLs on cleanup
+    return () => previews.forEach((url) => URL.revokeObjectURL(url));
+  }, [files]);
+
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files).slice(0, 3); // max 3
+      setFiles(selectedFiles);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,7 +111,13 @@ export default function AddProductPage() {
       formData.append("description", description.trim());
       formData.append("price", price);
       formData.append("stock", stock || "0");
-      if (file) formData.append("image", file);
+      formData.append("category_id", categoryId || "");
+      formData.append("subcategory_id", subcategoryId || "");
+      formData.append("brand_id", brandId || "");
+      formData.append("usage", usage);
+      formData.append("status", status);
+
+      files.forEach((file) => formData.append("images", file));
 
       const res = await fetch("http://localhost:5000/products", {
         method: "POST",
@@ -81,9 +131,14 @@ export default function AddProductPage() {
         setDescription("");
         setPrice("");
         setStock("");
-        setFile(null);
+        setFiles([]);
+        setFilePreviews([]);
+        setCategoryId("");
+        setSubcategoryId("");
+        setBrandId("");
+        setUsage("");
+        setStatus("active");
 
-        // Update product list
         setProducts((prev) => [data, ...prev]);
       }
     } catch (err) {
@@ -103,6 +158,7 @@ export default function AddProductPage() {
       {error && <p className="text-red-500 mb-3 text-sm">{error}</p>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Name */}
         <div className="flex items-center gap-2">
           <Tag className="w-5 h-5 text-gray-500" />
           <input
@@ -115,6 +171,7 @@ export default function AddProductPage() {
           />
         </div>
 
+        {/* Description */}
         <textarea
           placeholder="Description"
           value={description}
@@ -123,6 +180,7 @@ export default function AddProductPage() {
           rows={2}
         />
 
+        {/* Price & Stock */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-gray-500" />
@@ -148,14 +206,85 @@ export default function AddProductPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Image className="w-5 h-5 text-gray-500" />
+        {/* Category */}
+        <select
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        >
+          <option value="">Select Category</option>
+          {categories.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Subcategory */}
+        <select
+          value={subcategoryId}
+          onChange={(e) => setSubcategoryId(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        >
+          <option value="">Select Subcategory</option>
+          {subcategories.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Brand */}
+        <select
+          value={brandId}
+          onChange={(e) => setBrandId(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+        >
+          <option value="">Select Brand</option>
+          {brands.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Usage */}
+        <input
+          type="text"
+          placeholder="Usage (e.g. Men, Women, Electronics)"
+          value={usage}
+          onChange={(e) => setUsage(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+
+        {/* Status */}
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+
+        {/* Images */}
+        <div>
+          <label className="block mb-1 text-gray-600">Upload Images (max 3)</label>
           <input
             type="file"
+            multiple
             accept="image/*"
-            onChange={(e) => e.target.files && setFile(e.target.files[0])}
+            onChange={handleFilesChange}
             className="w-full text-sm text-gray-500 file:border file:border-gray-300 file:px-3 file:py-2 file:rounded-lg file:bg-gray-50 file:text-gray-700 file:cursor-pointer hover:file:bg-gray-100"
           />
+          <div className="flex gap-2 mt-2">
+            {filePreviews.map((src, i) => (
+              <img key={i} src={src} alt={`preview-${i}`} className="w-16 h-16 object-cover rounded" />
+            ))}
+          </div>
         </div>
 
         <button
@@ -167,6 +296,7 @@ export default function AddProductPage() {
         </button>
       </form>
 
+      {/* Seller Products */}
       <div className="mt-8">
         <h3 className="text-lg font-semibold mb-3 text-gray-700">Your Products</h3>
         {products.length === 0 ? (
@@ -175,9 +305,9 @@ export default function AddProductPage() {
           <ul className="space-y-4">
             {products.map((p) => (
               <li key={p.id} className="border rounded-lg p-3 flex gap-3 items-center">
-                {p.image_url ? (
+                {p.image_url1 ? (
                   <img
-                    src={`http://`lo`calhost:5000/${p.image_url}`}
+                    src={`http://localhost:5000/${p.image_url1}`}
                     alt={p.name}
                     className="w-16 h-16 object-cover rounded"
                   />
@@ -189,7 +319,7 @@ export default function AddProductPage() {
                 <div>
                   <p className="font-medium text-gray-800">{p.name}</p>
                   <p className="text-gray-600 text-sm">{p.description}</p>
-                  <p className="text-gray-700 font-semibold">${p.price}</p>
+                  <p className="text-gray-700 font-semibold">{p.image_url} Birr</p>
                   <p className="text-gray-500 text-sm">Stock: {p.stock}</p>
                 </div>
               </li>

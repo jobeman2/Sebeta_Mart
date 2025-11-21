@@ -40,7 +40,7 @@ export default function RightIcons() {
       >
         <User className="w-6 h-6" />
         <span className="text-[11px] font-light mt-1 tracking-wide">
-          {user?.full_name?.split(" ")[0] || user?.email || "Account"}
+          {user?.full_name?.split(" ")[0] || user?.id || "Account"}
         </span>
       </Link>
     </div>
