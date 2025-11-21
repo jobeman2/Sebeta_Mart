@@ -101,11 +101,11 @@ export default function ProductsGrid() {
               <div className="flex justify-between items-center mt-4">
                 {/* VIEW BUTTON */}
                 <button
-                  onClick={() => router.push(`/product/${product.id}`)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
-                >
-                  View
-                </button>
+  onClick={() => router.push(`/product/${product.id}`)}
+  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
+>
+  View
+</button>
               </div>
             </div>
 

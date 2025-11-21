@@ -18,9 +18,11 @@ router.get("/:id", async (req, res) => {
 
     const product = result.rows[0];
 
-    // Normalize slashes only
-    ["image_url1", "image_url2", "image_url3"].forEach(key => {
-      if (product[key]) product[key] = product[key].replace(/\\/g, "/");
+    // Convert all image paths to full URLs
+    ["image_url", "image_url1", "image_url2", "image_url3"].forEach((key) => {
+      if (product[key]) {
+        product[key] = `http://localhost:5000/${product[key].replace(/\\/g, "/")}`;
+      }
     });
 
     res.json(product);

@@ -319,7 +319,7 @@ export default function AddProductPage() {
                 <div>
                   <p className="font-medium text-gray-800">{p.name}</p>
                   <p className="text-gray-600 text-sm">{p.description}</p>
-                  <p className="text-gray-700 font-semibold">{p.price} Birr</p>
+                  <p className="text-gray-700 font-semibold">{p.image_url} Birr</p>
                   <p className="text-gray-500 text-sm">Stock: {p.stock}</p>
                 </div>
               </li>
