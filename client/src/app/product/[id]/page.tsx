@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useContext } from "react";
 import { useParams } from "next/navigation";
-import { AuthContext } from "@/context/Authcontext";
+import { AuthContext } from "@/context/Authcontext"; // adjust path if needed
 
 export default function ProductPage() {
   const { id } = useParams();
@@ -31,6 +31,7 @@ export default function ProductPage() {
           }
         });
         setProduct(data);
+        
       } catch (err) {
         console.error(err);
         setError("Server error while fetching product.");
@@ -42,22 +43,21 @@ export default function ProductPage() {
     fetchProduct();
   }, [id]);
 
-  // Fetch logged-in user's seller ID
+  // Fetch seller ID for logged-in user
   useEffect(() => {
     const fetchUserSellerId = async () => {
       if (!user) return;
+
       try {
-        const res = await fetch(`http://localhost:5000/sellers/${user.id}`);
-        if (!res.ok) {
-          setUserSellerId(null); // not a seller
-          return;
-        }
+        const res = await fetch(`http://localhost:5000/sellers/user/${user.id}`);
+        if (!res.ok) return;
         const data = await res.json();
-        setUserSellerId(data.id); // seller ID
+        setUserSellerId(data?.seller_id || null);
       } catch (err) {
         console.error("Failed to fetch user seller ID", err);
       }
     };
+
     fetchUserSellerId();
   }, [user]);
 
@@ -68,8 +68,7 @@ export default function ProductPage() {
       return;
     }
 
-    // Check if user is trying to order their own product
-    if (product && userSellerId && userSellerId === product.seller_id) {
+    if (userSellerId && product && userSellerId === product.seller_id) {
       setOrderMessage("You cannot order your own product.");
       return;
     }
@@ -101,8 +100,7 @@ export default function ProductPage() {
 
   const images = [product.image_url, product.image_url1, product.image_url2, product.image_url3].filter(Boolean);
 
-  // Check if logged-in user is the owner of the product
-  const isOwnProduct = userSellerId && product && userSellerId === product.seller_id;
+  const isOwnProduct = userSellerId && userSellerId === product.seller_id;
 
   return (
     <div className="max-w-5xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-md">
@@ -112,7 +110,12 @@ export default function ProductPage() {
         <div className="flex flex-col gap-4">
           {images.length > 0 ? (
             images.map((img, idx) => (
-              <img key={idx} src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-64 object-cover rounded-lg" />
+              <img
+                key={idx}
+                src={img}
+                alt={`${product.name} ${idx + 1}`}
+                className="w-full h-64 object-cover rounded-lg"
+              />
             ))
           ) : (
             <div className="w-full h-64 flex items-center justify-center bg-gray-100 text-gray-400 rounded-lg">
