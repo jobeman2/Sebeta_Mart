@@ -9,7 +9,6 @@ import HeroSection from "@/components/dashboard/HeroSection";
 import MetricCard from "@/components/dashboard/MetricCard";
 import DashboardContent from "@/components/dashboard/DashboardContent";
 import Card from "@/components/dashboard/Card";
-import AddProduct from "@/components/dashboard/AddProduct"; // Make sure this exists
 import AddProductForm from "@/components/dashboard/AddProduct";
 
 export default function Dashboard() {
@@ -22,13 +21,8 @@ export default function Dashboard() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [seller, setSeller] = useState<any>(null);
   const [sellerLoading, setSellerLoading] = useState(true);
-
-  // 🛍️ Sample Data
-  const [orders] = useState([
-    { id: "ORD-1001", item: "Classic Burger", price: 12.99, status: "Delivered", date: "Oct 20, 2025", location: "Addis Ababa" },
-    { id: "ORD-1002", item: "Spicy Fries Combo", price: 9.5, status: "In Transit", date: "Oct 22, 2025", location: "Bole" },
-    { id: "ORD-1003", item: "Cheese Combo", price: 14.25, status: "Preparing", date: "Oct 23, 2025", location: "Sebeta" },
-  ]);
+  const [sellerOrders, setSellerOrders] = useState<any[]>([]);
+  const [sellerOrdersLoading, setSellerOrdersLoading] = useState(true);
 
   const [notifications] = useState([
     { id: "1", message: "Your order ORD-1002 is now in transit.", date: "Oct 22, 2025", read: false },
@@ -44,22 +38,51 @@ export default function Dashboard() {
   // 🏪 Fetch seller info
   useEffect(() => {
     if (!user) return;
+
     const fetchSeller = async () => {
       try {
         const res = await fetch(`http://localhost:5000/sellers/${user.id}`, { credentials: "include" });
         if (res.ok) setSeller(await res.json());
         else setSeller(null);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch seller info:", err);
         setSeller(null);
       } finally {
         setSellerLoading(false);
       }
     };
+
     fetchSeller();
   }, [user]);
 
-  if (loading || sellerLoading)
+  // 🛒 Fetch seller orders
+  useEffect(() => {
+    if (!seller) {
+      setSellerOrders([]);
+      setSellerOrdersLoading(false);
+      return;
+    }
+
+    const fetchSellerOrders = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/sellerOrders/${seller.id}`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to fetch seller orders");
+        const data = await res.json();
+        setSellerOrders(data);
+      } catch (err) {
+        console.error("Failed to fetch seller orders:", err);
+        setSellerOrders([]);
+      } finally {
+        setSellerOrdersLoading(false);
+      }
+    };
+
+    fetchSellerOrders();
+  }, [seller]);
+
+  if (loading || sellerLoading || sellerOrdersLoading)
     return (
       <div className="flex items-center justify-center min-h-screen text-gray-600">
         Loading dashboard...
@@ -68,7 +91,7 @@ export default function Dashboard() {
 
   if (!user) return null;
 
-  // 🧭 Tabs based on role
+  // Tabs based on role
   const tabs =
     user.role === "seller"
       ? ["overview", "orders", "add product", "shop", "account", "notifications"]
@@ -76,11 +99,16 @@ export default function Dashboard() {
 
   const handleShopCreated = (newSeller: any) => setSeller(newSeller);
 
+  // Metrics
+  const totalOrders = sellerOrders.length;
+  const activeDeliveries = sellerOrders.filter((o) => o.status !== "Delivered").length;
+  const totalRevenue = sellerOrders.reduce((sum, o) => sum + o.total_price, 0).toFixed(2);
+
   return (
     <div className="min-h-screen bg-[#f8f9fb] text-gray-900">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-12 gap-8">
-        
-        {/* 🧱 Sidebar */}
+
+        {/* Sidebar */}
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -90,7 +118,7 @@ export default function Dashboard() {
         />
 
         <section className="col-span-12 lg:col-span-9 xl:col-span-10 space-y-8">
-          {/* 👋 Hero Section */}
+          {/* Hero */}
           <HeroSection
             userName={user.full_name}
             onViewOrders={() => setActiveTab("orders")}
@@ -99,15 +127,19 @@ export default function Dashboard() {
             accountType={user.role}
           />
 
-          {/* 📊 Metrics */}
+          {/* Metrics */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard icon={ShoppingBag} label="Total Orders" value={orders.length.toString()} />
-            <MetricCard icon={Truck} label="Active Deliveries" value={orders.filter((o) => o.status !== "Delivered").length.toString()} />
-            <MetricCard icon={CreditCard} label="Total Spent" value={`ETB ${orders.reduce((s, o) => s + o.price, 0).toFixed(2)}`} />
-            <MetricCard icon={Heart} label={user.role === "seller" ? "Shop Items" : "Wishlist"} value="3" />
+            <MetricCard icon={ShoppingBag} label="Total Orders" value={totalOrders.toString()} />
+            <MetricCard icon={Truck} label="Active Deliveries" value={activeDeliveries.toString()} />
+            <MetricCard icon={CreditCard} label="Total Earned" value={`ETB ${totalRevenue}`} />
+            <MetricCard
+              icon={Heart}
+              label={user.role === "seller" ? "Shop Items" : "Wishlist"}
+              value={user.role === "seller" && seller ? seller.products_count?.toString() || "0" : "3"}
+            />
           </div>
 
-          {/* 🧩 Main Grid */}
+          {/* Main Grid */}
           <div className="grid grid-cols-12 gap-6">
             {/* Left Side */}
             <div className="col-span-12 lg:col-span-8 space-y-6">
@@ -115,12 +147,12 @@ export default function Dashboard() {
                 activeTab={activeTab}
                 user={user}
                 seller={seller}
-                orders={orders}
+                orders={sellerOrders}
                 notifications={notifications}
                 onShopCreated={handleShopCreated}
               />
 
-              {/* Add Product Tab Render */}
+              {/* Add Product */}
               {activeTab === "add product" && (
                 <Card>
                   <h3 className="text-lg font-semibold mb-3">Add Product</h3>
