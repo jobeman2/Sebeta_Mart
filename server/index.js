@@ -30,6 +30,7 @@ app.use("/brands", require("./routes/product/brands"));
 app.use("/product", require("./routes/product/singleproduct"));
 app.use("/orders", require("./routes/orders/orders"));
 app.use("/sellerOrders", require("./routes/orders/sellerOrders"));
+app.use("/singleorder", require("./routes/orders/singleOrder"));
 
 // NEW: All products route for frontend product listing
 app.use("/productlist", require("./routes/product/productlist"));
