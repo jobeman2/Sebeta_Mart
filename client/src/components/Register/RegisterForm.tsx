@@ -158,6 +158,7 @@ export default function RegisterForm() {
         >
           <option value="buyer">Buyer</option>
           <option value="seller">Seller</option>
+          <option value="delivery">Delivery</option>
         </select>
       </div>
 

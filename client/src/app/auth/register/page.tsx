@@ -19,7 +19,7 @@ export default function RegisterPage() {
       try {
         const res = await fetch("http://localhost:5000/auth/me", {
           method: "GET",
-          credentials: "include", // important — send cookies
+          credentials: "include",
         });
 
         // if backend responds OK (200) we assume authenticated

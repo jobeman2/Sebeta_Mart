@@ -17,7 +17,6 @@ app.use(cookieParser());
 
 // Serve static files (images in uploads folder)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 // Routes
 app.use("/auth/register", require("./routes/auth/register"));
 app.use("/auth/login", require("./routes/auth/login"));
@@ -31,6 +30,7 @@ app.use("/product", require("./routes/product/singleproduct"));
 app.use("/orders", require("./routes/orders/orders"));
 app.use("/sellerOrders", require("./routes/orders/sellerOrders"));
 app.use("/singleorder", require("./routes/orders/singleOrder"));
+app.use("/delivery", require("./routes/delivery/delivery"));
 
 // NEW: All products route for frontend product listing
 app.use("/productlist", require("./routes/product/productlist"));
