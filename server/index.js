@@ -34,6 +34,9 @@ app.use("/delivery", require("./routes/delivery/delivery"));
 app.use("/delivery", require("./routes/delivery/assignments"));
 const deliveryCompleteRoutes = require("./routes/delivery/complete");
 app.use("/delivery/complete", deliveryCompleteRoutes);
+const buyerOrderRoute = require("./routes/buyer/order");
+app.use("/buyer/orders", buyerOrderRoute);
+
 
 
 // NEW: All products route for frontend product listing
