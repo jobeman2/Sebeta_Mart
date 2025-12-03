@@ -7,9 +7,10 @@ const auth = require("../../middleware/auth");
 router.post("/", auth, async (req, res) => {
   try {
     const user = req.user; // logged-in user from auth middleware
-    const { product_id, quantity } = req.body;
+    const { product_id, quantity, region, city, subcity_id, latitude, longitude } = req.body;
 
-    if (!product_id || !quantity) {
+    // Validate required fields
+    if (!product_id || !quantity || !region || !city || !subcity_id || !latitude || !longitude) {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
@@ -32,14 +33,15 @@ router.post("/", auth, async (req, res) => {
 
     const total_price = Number(product.price) * Number(quantity);
 
-    // Insert order
+    // Insert order with subcity_id
     const result = await pool.query(
       `
-      INSERT INTO orders (product_id, seller_id, user_id, quantity, total_price)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO orders 
+      (product_id, seller_id, user_id, quantity, total_price, region, city, subcity_id, latitude, longitude)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING *;
       `,
-      [product_id, product.seller_id, user.id, quantity, total_price]
+      [product_id, product.seller_id, user.id, quantity, total_price, region, city, Number(subcity_id), latitude, longitude]
     );
 
     res.status(201).json({

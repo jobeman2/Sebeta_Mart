@@ -4,6 +4,11 @@ import { useState, useEffect, useContext } from "react";
 import { useParams } from "next/navigation";
 import { AuthContext } from "@/context/Authcontext"; // adjust path if needed
 
+interface SubCity {
+  id: number;
+  name: string;
+}
+
 export default function ProductPage() {
   const { id } = useParams();
   const { user, loading: authLoading } = useContext(AuthContext);
@@ -12,10 +17,16 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [subCities, setSubCities] = useState<SubCity[]>([]);
+  const [subCityId, setSubCityId] = useState<number | "">(""); // store subcity ID
+  const [region, setRegion] = useState("");
+  const [city, setCity] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [orderMessage, setOrderMessage] = useState("");
   const [userSellerId, setUserSellerId] = useState<number | null>(null);
 
-  // Fetch product data
+  // Fetch product
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -31,7 +42,6 @@ export default function ProductPage() {
           }
         });
         setProduct(data);
-        
       } catch (err) {
         console.error(err);
         setError("Server error while fetching product.");
@@ -39,7 +49,6 @@ export default function ProductPage() {
         setLoading(false);
       }
     };
-
     fetchProduct();
   }, [id]);
 
@@ -47,7 +56,6 @@ export default function ProductPage() {
   useEffect(() => {
     const fetchUserSellerId = async () => {
       if (!user) return;
-
       try {
         const res = await fetch(`http://localhost:5000/sellers/user/${user.id}`);
         if (!res.ok) return;
@@ -57,9 +65,35 @@ export default function ProductPage() {
         console.error("Failed to fetch user seller ID", err);
       }
     };
-
     fetchUserSellerId();
   }, [user]);
+
+  // Fetch subcities
+  useEffect(() => {
+    const fetchSubCities = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/subcities");
+        const data = await res.json();
+        setSubCities(data.subcities || []);
+      } catch (err) {
+        console.error("Failed to fetch subcities", err);
+      }
+    };
+    fetchSubCities();
+  }, []);
+
+  // Auto-detect user's location
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLatitude(pos.coords.latitude.toString());
+          setLongitude(pos.coords.longitude.toString());
+        },
+        (err) => console.error("Geolocation error:", err)
+      );
+    }
+  }, []);
 
   // Handle order
   const handleOrder = async () => {
@@ -67,9 +101,16 @@ export default function ProductPage() {
       setOrderMessage("Please log in to place an order.");
       return;
     }
-
     if (userSellerId && product && userSellerId === product.seller_id) {
       setOrderMessage("You cannot order your own product.");
+      return;
+    }
+    if (!subCityId || !region || !city) {
+      setOrderMessage("Please fill all location fields.");
+      return;
+    }
+    if (!latitude || !longitude) {
+      setOrderMessage("Unable to detect your location.");
       return;
     }
 
@@ -82,9 +123,13 @@ export default function ProductPage() {
         body: JSON.stringify({
           product_id: product.id,
           quantity,
+          subcity_id: subCityId, // send ID
+          city,
+          region,
+          latitude,
+          longitude,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");
       setOrderMessage(`Order placed successfully! Order ID: ${data.order.id}`);
@@ -99,23 +144,16 @@ export default function ProductPage() {
   if (!product) return <p className="p-6 text-gray-600">Product not found.</p>;
 
   const images = [product.image_url, product.image_url1, product.image_url2, product.image_url3].filter(Boolean);
-
   const isOwnProduct = userSellerId && userSellerId === product.seller_id;
 
   return (
     <div className="max-w-5xl mx-auto mt-10 p-6 bg-white rounded-2xl shadow-md">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {/* Product Images */}
         <div className="flex flex-col gap-4">
           {images.length > 0 ? (
             images.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={`${product.name} ${idx + 1}`}
-                className="w-full h-64 object-cover rounded-lg"
-              />
+              <img key={idx} src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-64 object-cover rounded-lg" />
             ))
           ) : (
             <div className="w-full h-64 flex items-center justify-center bg-gray-100 text-gray-400 rounded-lg">
@@ -130,11 +168,40 @@ export default function ProductPage() {
           <p className="text-[#EF837B] font-semibold text-xl">ETB {product.price}</p>
           <p className="text-gray-600">{product.description}</p>
           <p className="text-gray-700">Stock: {product.stock}</p>
-          <p className="text-gray-700">Category ID: {product.category_id}</p>
-          <p className="text-gray-700">Subcategory ID: {product.subcategory_id}</p>
-          <p className="text-gray-700">Brand ID: {product.brand_id}</p>
-          <p className="text-gray-700">Usage: {product.usage}</p>
-          <p className="text-gray-700">Status: {product.status}</p>
+
+          {/* Location inputs */}
+          <div className="flex flex-col gap-2 mt-4">
+            <select
+              value={subCityId}
+              onChange={(e) => setSubCityId(Number(e.target.value))}
+              className="border border-gray-300 rounded p-2"
+            >
+              <option value="">Select Sub-city</option>
+              {subCities.map((sc) => (
+                <option key={sc.id} value={sc.id}>
+                  {sc.name}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="text"
+              placeholder="City"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="border border-gray-300 rounded p-2"
+            />
+            <input
+              type="text"
+              placeholder="Region"
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              className="border border-gray-300 rounded p-2"
+            />
+
+            <input type="text" placeholder="Latitude" value={latitude} readOnly className="bg-gray-100 border border-gray-300 rounded p-2" />
+            <input type="text" placeholder="Longitude" value={longitude} readOnly className="bg-gray-100 border border-gray-300 rounded p-2" />
+          </div>
 
           {/* Order section */}
           <div className="mt-4 flex items-center gap-2">
@@ -148,9 +215,7 @@ export default function ProductPage() {
             <button
               onClick={handleOrder}
               disabled={!user || isOwnProduct}
-              className={`px-4 py-2 rounded ${
-                !user || isOwnProduct ? "bg-gray-400 cursor-not-allowed" : "bg-[#EF837B] hover:bg-[#d56a61]"
-              }`}
+              className={`px-4 py-2 rounded ${!user || isOwnProduct ? "bg-gray-400 cursor-not-allowed" : "bg-[#EF837B] hover:bg-[#d56a61]"}`}
             >
               Order Now
             </button>

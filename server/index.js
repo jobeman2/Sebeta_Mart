@@ -32,9 +32,13 @@ app.use("/sellerOrders", require("./routes/orders/sellerOrders"));
 app.use("/singleorder", require("./routes/orders/singleOrder"));
 app.use("/delivery", require("./routes/delivery/delivery"));
 app.use("/delivery", require("./routes/delivery/assignments"));
+const deliveryCompleteRoutes = require("./routes/delivery/complete");
+app.use("/delivery/complete", deliveryCompleteRoutes);
+
 
 // NEW: All products route for frontend product listing
 app.use("/productlist", require("./routes/product/productlist"));
+app.use("/subcities", require("./routes/subcity"));
 
 // Import auth middleware
 const auth = require("./middleware/auth");
