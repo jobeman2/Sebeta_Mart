@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useContext } from "react";
 import { useParams } from "next/navigation";
-import { AuthContext } from "@/context/Authcontext"; // adjust path if needed
+import { AuthContext } from "@/context/Authcontext";
 
 interface SubCity {
   id: number;
@@ -18,13 +18,17 @@ export default function ProductPage() {
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [subCities, setSubCities] = useState<SubCity[]>([]);
-  const [subCityId, setSubCityId] = useState<number | "">(""); // store subcity ID
+  const [subCityId, setSubCityId] = useState<number | "">("");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [orderMessage, setOrderMessage] = useState("");
   const [userSellerId, setUserSellerId] = useState<number | null>(null);
+
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "telebirr">("cod");
+  const [telebirrTxn, setTelebirrTxn] = useState("");
+  const [screenshot, setScreenshot] = useState<File | null>(null);
 
   // Fetch product
   useEffect(() => {
@@ -95,7 +99,7 @@ export default function ProductPage() {
     }
   }, []);
 
-  // Handle order
+  // Handle order submission
   const handleOrder = async () => {
     if (!user) {
       setOrderMessage("Please log in to place an order.");
@@ -113,26 +117,41 @@ export default function ProductPage() {
       setOrderMessage("Unable to detect your location.");
       return;
     }
+    if (paymentMethod === "telebirr" && !telebirrTxn) {
+      setOrderMessage("Please enter TeleBirr transaction number.");
+      return;
+    }
 
     try {
       setOrderMessage("Placing order...");
+
+      const formData = new FormData();
+      formData.append("product_id", product.id);
+      formData.append("quantity", quantity.toString());
+      formData.append("subcity_id", subCityId.toString());
+      formData.append("city", city);
+      formData.append("region", region);
+      formData.append("latitude", latitude);
+      formData.append("longitude", longitude);
+      formData.append("payment_method", paymentMethod);
+      if (paymentMethod === "telebirr") {
+        formData.append("telebirr_txn_number", telebirrTxn);
+        if (screenshot) formData.append("screenshot", screenshot);
+      }
+
       const res = await fetch("http://localhost:5000/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          product_id: product.id,
-          quantity,
-          subcity_id: subCityId, // send ID
-          city,
-          region,
-          latitude,
-          longitude,
-        }),
+        body: formData,
       });
+
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");
+
       setOrderMessage(`Order placed successfully! Order ID: ${data.order.id}`);
+      // reset TeleBirr fields
+      setTelebirrTxn("");
+      setScreenshot(null);
     } catch (err: any) {
       console.error(err);
       setOrderMessage(err.message || "Error placing order.");
@@ -201,6 +220,37 @@ export default function ProductPage() {
 
             <input type="text" placeholder="Latitude" value={latitude} readOnly className="bg-gray-100 border border-gray-300 rounded p-2" />
             <input type="text" placeholder="Longitude" value={longitude} readOnly className="bg-gray-100 border border-gray-300 rounded p-2" />
+          </div>
+
+          {/* Payment method */}
+          <div className="flex flex-col gap-2 mt-4">
+            <label className="font-semibold">Payment Method</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as "cod" | "telebirr")}
+              className="border border-gray-300 rounded p-2"
+            >
+              <option value="cod">Cash on Delivery</option>
+              <option value="telebirr">TeleBirr</option>
+            </select>
+
+            {paymentMethod === "telebirr" && (
+              <div className="flex flex-col gap-2 mt-2">
+                <input
+                  type="text"
+                  placeholder="TeleBirr Transaction Number"
+                  value={telebirrTxn}
+                  onChange={(e) => setTelebirrTxn(e.target.value)}
+                  className="border border-gray-300 rounded p-2"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
+                  className="border border-gray-300 rounded p-2"
+                />
+              </div>
+            )}
           </div>
 
           {/* Order section */}
