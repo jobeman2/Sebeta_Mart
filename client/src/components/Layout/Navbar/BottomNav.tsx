@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, ChevronDown, Home, ShoppingCart, Grid, Info, Phone } from "lucide-react";
+import { Menu, ChevronDown, Home, ShoppingCart, Grid, Info, Phone, CircleQuestionMarkIcon, BadgeQuestionMark } from "lucide-react";
 
 export default function BottomNav() {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -17,12 +17,12 @@ export default function BottomNav() {
   ];
 
   const navItems = [
-    { name: "Home", href: "#", icon: <Home className="w-4 h-4" /> },
-    { name: "Shop", href: "#", icon: <ShoppingCart className="w-4 h-4" /> },
+    { name: "Home", href: "/", icon: <Home className="w-4 h-4" /> },
+    { name: "Shop", href: "/shop", icon: <ShoppingCart className="w-4 h-4" /> },
     { name: "Categories", href: "#", icon: <Grid className="w-4 h-4" /> },
-    { name: "About", href: "#", icon: <Info className="w-4 h-4" /> },
-    { name: "Contact", href: "#", icon: <Phone className="w-4 h-4" /> },
-    { name: "Others", href: "#", icon: <Phone className="w-4 h-4" /> },
+    { name: "About", href: "/about", icon: <Info className="w-4 h-4" /> },
+    { name: "Contact", href: "/contact", icon: <Phone className="w-4 h-4" /> },
+    { name: "FAQ", href: "/faq", icon: <CircleQuestionMarkIcon className="w-4 h-4" /> },
   ];
 
   return (

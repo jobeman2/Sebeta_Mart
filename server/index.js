@@ -41,7 +41,7 @@ app.use("/buyer/favorites", require("./routes/buyer/fav"));
 app.use("/admin/dashboard", require("./routes/admin/dashboard"));
 app.use("/admin/buyers", require("./routes/admin/buyers"));
 app.use("/admin/sellers", require("./routes/admin/sellers"));
-
+app.use("/search", require("./routes/search/search"));
 // NEW: All products route for frontend product listing
 app.use("/productlist", require("./routes/product/productlist"));
 app.use("/subcities", require("./routes/subcity"));

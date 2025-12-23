@@ -82,4 +82,25 @@ router.get("/", auth, async (req, res) => {
   }
 });
 
+// -----------------------------
+// GET FAVORITES COUNT
+// -----------------------------
+router.get("/count", auth, async (req, res) => {
+  try {
+    const user_id = req.user.id;
+
+    const result = await pool.query(
+      "SELECT COUNT(*) FROM favorites WHERE user_id = $1",
+      [user_id]
+    );
+
+    const count = parseInt(result.rows[0].count, 10);
+
+    res.status(200).json({ count });
+  } catch (err) {
+    console.error("Favorites count error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
