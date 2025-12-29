@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
-const categories = [
+// Type for a category
+interface Category {
+  id: number;
+  name: string;
+  image: string;
+}
+
+// Properly type the categories array
+const categories: Category[] = [
   { id: 1, name: "Electronics", image: "/images/cat/1.png" },
   { id: 2, name: "Mobile Phones", image: "/images/cat/3.png" },
   { id: 3, name: "Clothing", image: "/images/cat/p.jpg" },
@@ -34,10 +43,13 @@ export default function Categories() {
               className="flex flex-col items-center justify-center hover:bg-blue-50 transition-colors rounded-lg px-6 py-4 min-w-[150px] flex-shrink-0 cursor-pointer"
             >
               <div className="w-20 h-20 sm:w-24 sm:h-24 relative">
-                <img
+                <Image
                   src={category.image}
                   alt={category.name}
-                  className="object-contain w-full h-full rounded-lg"
+                  fill
+                  className="object-contain rounded-lg"
+                  sizes="(max-width: 768px) 80px, 96px"
+                  priority
                 />
               </div>
               <span className="mt-3 text-base font-medium text-gray-700 text-center">
