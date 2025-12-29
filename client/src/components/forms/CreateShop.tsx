@@ -1,9 +1,21 @@
 "use client";
 import { useState } from "react";
 
+// Define proper Shop type instead of `any`
+interface Shop {
+  id: number;
+  shop_name: string;
+  shop_description?: string;
+  shop_address?: string;
+  business_license?: string;
+  government_id?: string;
+  national_id_number?: string;
+  user_id: number;
+}
+
 interface Props {
   userId: number;
-  onShopCreated: (seller: any) => void;
+  onShopCreated: (seller: Shop) => void;
 }
 
 export default function CreateShopForm({ userId, onShopCreated }: Props) {
@@ -27,7 +39,7 @@ export default function CreateShopForm({ userId, onShopCreated }: Props) {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/sellers", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sellers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -41,7 +53,7 @@ export default function CreateShopForm({ userId, onShopCreated }: Props) {
         }),
       });
 
-      const data = await res.json();
+      const data: Shop = await res.json();
       if (!res.ok) {
         setError(data.message || "Failed to create shop");
       } else {
@@ -56,8 +68,10 @@ export default function CreateShopForm({ userId, onShopCreated }: Props) {
   };
 
   return (
-    <div className=" bg-white rounded-2xl  p-6">
-      <h2 className="text-xl font-semibold  text-gray-800 mb-5">Create Your Shop</h2>
+    <div className="bg-white rounded-2xl p-6">
+      <h2 className="text-xl font-semibold text-gray-800 mb-5">
+        Create Your Shop
+      </h2>
 
       {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
 

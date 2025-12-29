@@ -33,7 +33,15 @@ const HeroSection: React.FC<HeroSectionProps> = ({
         </div>
 
         <div className="text-sm opacity-80 mt-1">
-          {accountType === "seller" ? "Seller Account" : "Buyer Account"}
+        {
+        accountType === "seller"
+          ? "Seller Account"
+          : accountType === "buyer"
+          ? "Buyer Account"
+          : accountType === "delivery"
+          ? "Delivery Person Account"
+          : ""
+      }
         </div>
       </div>
 

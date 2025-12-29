@@ -1,5 +1,5 @@
 "use client";
-import Header from "@/components/UI/header";
+import Header from "@/context/UI/header";
 import { useEffect, useState } from "react";
 
 interface UserData {
@@ -19,7 +19,9 @@ interface SellerData {
 
 export default function Dashboard() {
   const [user, setUser] = useState<UserData | null>(null);
-  const [seller, setSeller] = useState<SellerData | null | undefined>(undefined);
+  const [seller, setSeller] = useState<SellerData | null | undefined>(
+    undefined
+  );
   const [loading, setLoading] = useState(true);
   const [loadingSeller, setLoadingSeller] = useState(true);
   const [error, setError] = useState("");
@@ -59,7 +61,6 @@ export default function Dashboard() {
           const res = await fetch(`http://localhost:5000/sellers/${user.id}`);
           if (res.status === 404) {
             setSeller(null); // seller not created yet
-         
           } else {
             const data = await res.json();
             setSeller(data); // seller exists
@@ -97,9 +98,13 @@ export default function Dashboard() {
         <strong>Role:</strong> {user?.role}
       </p>
 
-      {user?.role === "admin" && <p>Welcome, Admin! You can manage the platform.</p>}
+      {user?.role === "admin" && (
+        <p>Welcome, Admin! You can manage the platform.</p>
+      )}
 
-      {user?.role === "buyer" && <p>Welcome, Buyer! Browse and buy products.</p>}
+      {user?.role === "buyer" && (
+        <p>Welcome, Buyer! Browse and buy products.</p>
+      )}
 
       {user?.role === "seller" && (
         <>
