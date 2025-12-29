@@ -428,7 +428,7 @@ export default function DashboardPage() {
       case "buyer":
         return (
           <>
-            <BuyerStatsCards stats={dashboardData.stats} />
+            <BuyerStatsCards apiUrl="http://localhost:5000/buyer/orders" />
 
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column - Orders & Wishlist */}
@@ -440,24 +440,10 @@ export default function DashboardPage() {
                 />
 
                 {dashboardData.wishlistItems &&
-                  dashboardData.wishlistItems.length > 0 && (
-                    <BuyerWishlist
-                      items={dashboardData.wishlistItems}
-                      onRemoveItem={handleRemoveWishlistItem}
-                      onAddToCart={handleAddWishlistItemToCart}
-                      onViewProduct={handleViewWishlistProduct}
-                    />
-                  )}
+                  dashboardData.wishlistItems.length > 0 && <div></div>}
 
                 {dashboardData.pendingActions &&
-                  dashboardData.pendingActions.length > 0 && (
-                    <BuyerPendingActions
-                      actions={dashboardData.pendingActions}
-                      onProcessAction={(orderId) =>
-                        router.push(`/orders/${orderId}`)
-                      }
-                    />
-                  )}
+                  dashboardData.pendingActions.length > 0 && <div></div>}
               </div>
 
               {/* Right Column - Performance & Quick Links */}

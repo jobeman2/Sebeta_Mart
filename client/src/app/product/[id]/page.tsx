@@ -18,12 +18,36 @@ import {
   MapPin,
   ChevronLeft,
   ChevronRight,
+  X,
+  Receipt,
+  Calculator,
 } from "lucide-react";
 
 interface SubCity {
   id: number;
   name: string;
 }
+
+interface Toast {
+  id: number;
+  message: string;
+  type: "success" | "error" | "info" | "warning";
+}
+
+// Tax rate (15%)
+const TAX_RATE = 0.15;
+
+// Calculate price with tax
+const calculatePriceWithTax = (price: string | number) => {
+  const basePrice = typeof price === "string" ? parseFloat(price) : price;
+  const tax = basePrice * TAX_RATE;
+  const totalWithTax = basePrice + tax;
+  return {
+    basePrice: basePrice.toFixed(2),
+    tax: tax.toFixed(2),
+    totalWithTax: totalWithTax.toFixed(2),
+  };
+};
 
 export default function ProductPage() {
   const { id } = useParams();
@@ -39,7 +63,7 @@ export default function ProductPage() {
   const [city, setCity] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
-  const [orderMessage, setOrderMessage] = useState("");
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [userSellerId, setUserSellerId] = useState<number | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "telebirr">("cod");
   const [telebirrTxn, setTelebirrTxn] = useState("");
@@ -47,7 +71,48 @@ export default function ProductPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isCompared, setIsCompared] = useState(false);
-  const [activeTab, setActiveTab] = useState("description");
+  const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+  const [orderProcessing, setOrderProcessing] = useState(false);
+
+  // Calculate prices with tax
+  const priceDetails = useMemo(() => {
+    if (!product) return null;
+    return calculatePriceWithTax(product.price);
+  }, [product]);
+
+  const subtotalPrice = useMemo(() => {
+    if (!priceDetails) return "0.00";
+    const subtotal = parseFloat(priceDetails.basePrice) * quantity;
+    return subtotal.toFixed(2);
+  }, [priceDetails, quantity]);
+
+  const subtotalTax = useMemo(() => {
+    if (!priceDetails) return "0.00";
+    const tax = parseFloat(priceDetails.tax) * quantity;
+    return tax.toFixed(2);
+  }, [priceDetails, quantity]);
+
+  const subtotalWithTax = useMemo(() => {
+    if (!priceDetails) return "0.00";
+    const total = parseFloat(priceDetails.totalWithTax) * quantity;
+    return total.toFixed(2);
+  }, [priceDetails, quantity]);
+
+  // Add toast notification
+  const addToast = useCallback((message: string, type: Toast["type"]) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+
+    // Auto remove toast after 5 seconds
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 5000);
+  }, []);
+
+  // Remove toast
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id));
+  }, []);
 
   // Fetch product, subcities, and user seller ID concurrently
   useEffect(() => {
@@ -127,35 +192,61 @@ export default function ProductPage() {
     [userSellerId, product]
   );
 
-  const handleOrder = useCallback(async () => {
+  const validateOrder = useCallback(() => {
     if (!user) {
-      setOrderMessage("Please log in to place an order.");
-      return;
+      addToast("Please log in to place an order.", "error");
+      return false;
     }
     if (isOwnProduct) {
-      setOrderMessage("You cannot order your own product.");
-      return;
+      addToast("You cannot order your own product.", "error");
+      return false;
     }
-    if (!selectedSubCity || !region || !city) {
-      setOrderMessage("Please fill all location fields.");
-      return;
+    if (!selectedSubCity) {
+      addToast("Please select a sub-city.", "error");
+      return false;
+    }
+    if (!region.trim()) {
+      addToast("Please enter your region.", "error");
+      return false;
+    }
+    if (!city.trim()) {
+      addToast("Please enter your city.", "error");
+      return false;
     }
     if (!latitude || !longitude) {
-      setOrderMessage("Unable to detect your location.");
-      return;
+      addToast("Unable to detect your location.", "error");
+      return false;
     }
-    if (paymentMethod === "telebirr" && !telebirrTxn) {
-      setOrderMessage("Please enter TeleBirr transaction number.");
-      return;
+    if (paymentMethod === "telebirr" && !telebirrTxn.trim()) {
+      addToast("Please enter TeleBirr transaction number.", "error");
+      return false;
     }
+    return true;
+  }, [
+    user,
+    isOwnProduct,
+    selectedSubCity,
+    region,
+    city,
+    latitude,
+    longitude,
+    paymentMethod,
+    telebirrTxn,
+    addToast,
+  ]);
 
+  const handleOrderSubmit = useCallback(async () => {
+    if (!validateOrder()) return;
+
+    setOrderProcessing(true);
     try {
-      setOrderMessage("Placing order...");
+      addToast("Placing order...", "info");
 
       const formData = new FormData();
-      formData.append("product_id", product.id);
+      formData.append("product_id", product.id.toString());
       formData.append("quantity", quantity.toString());
-      formData.append("subcity_id", selectedSubCity.id.toString());
+      formData.append("total_price", subtotalWithTax); // Send total with tax
+      formData.append("subcity_id", selectedSubCity!.id.toString());
       formData.append("city", city);
       formData.append("region", region);
       formData.append("latitude", latitude);
@@ -175,35 +266,48 @@ export default function ProductPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Order failed");
 
-      setOrderMessage(`Order placed successfully! Order ID: ${data.order.id}`);
+      addToast(
+        `Order placed successfully! Order ID: ${data.order.id}`,
+        "success"
+      );
       setTelebirrTxn("");
       setScreenshot(null);
+      setShowOrderConfirmation(false);
+      setOrderProcessing(false);
     } catch (err: any) {
       console.error(err);
-      setOrderMessage(err.message || "Error placing order.");
+      addToast(err.message || "Error placing order.", "error");
+      setOrderProcessing(false);
     }
   }, [
-    user,
-    isOwnProduct,
+    validateOrder,
+    product,
+    quantity,
+    subtotalWithTax,
     selectedSubCity,
-    region,
     city,
+    region,
     latitude,
     longitude,
     paymentMethod,
     telebirrTxn,
     screenshot,
-    product,
-    quantity,
+    addToast,
   ]);
+
+  const handleOrderClick = useCallback(() => {
+    if (validateOrder()) {
+      setShowOrderConfirmation(true);
+    }
+  }, [validateOrder]);
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-pulse w-full max-w-7xl mx-auto px-4">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-8 mx-auto"></div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            <div className="h-[500px] bg-gray-200 rounded-xl"></div>
+            <div className="h-[500px] bg-gray-200 rounded-lg"></div>
             <div className="space-y-6">
               <div className="h-10 bg-gray-200 rounded w-3/4"></div>
               <div className="h-6 bg-gray-200 rounded w-1/2"></div>
@@ -218,20 +322,20 @@ export default function ProductPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="max-w-lg mx-auto px-4">
-          <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="bg-white border border-gray-300 p-8">
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-200">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 Error Loading Product
               </h3>
               <p className="text-gray-600 mb-6">{error}</p>
               <a
                 href="/products"
-                className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                className="px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors font-medium"
               >
                 Back to Products
               </a>
@@ -244,14 +348,14 @@ export default function ProductPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="max-w-lg mx-auto px-4">
-          <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="bg-white border border-gray-300 p-8">
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 border border-gray-200">
                 <Package className="w-8 h-8 text-gray-600" />
               </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 Product Not Found
               </h3>
               <p className="text-gray-600 mb-6">
@@ -260,7 +364,7 @@ export default function ProductPage() {
               </p>
               <a
                 href="/products"
-                className="px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                className="px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors font-medium"
               >
                 Browse Products
               </a>
@@ -271,38 +375,184 @@ export default function ProductPage() {
     );
   }
 
+  // Status-based colors
+  const statusColors = {
+    success: "bg-green-50 border-green-200 text-green-700",
+    error: "bg-red-50 border-red-200 text-red-700",
+    warning: "bg-yellow-50 border-yellow-200 text-yellow-700",
+    info: "bg-blue-50 border-blue-200 text-blue-700",
+  };
+
+  const stockStatusColor =
+    product.stock > 0
+      ? "bg-green-50 border border-green-200 text-green-700"
+      : "bg-red-50 border border-red-200 text-red-700";
+
+  const stockStatusIcon = product.stock > 0 ? CheckCircle : AlertCircle;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-white">
+      {/* Order Confirmation Modal */}
+      {showOrderConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Confirm Order</h3>
+              <button
+                onClick={() => setShowOrderConfirmation(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Product:</span>
+                <span className="font-medium">{product.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Quantity:</span>
+                <span className="font-medium">{quantity}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Unit Price:</span>
+                <span className="font-medium">
+                  ETB {priceDetails?.basePrice}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">VAT (15%):</span>
+                <span className="font-medium text-[#EF837B]">
+                  + ETB {priceDetails?.tax}
+                </span>
+              </div>
+              <div className="border-t border-gray-200 pt-3">
+                <div className="flex justify-between font-bold">
+                  <span>Subtotal:</span>
+                  <span>ETB {subtotalPrice}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>VAT on subtotal:</span>
+                  <span>ETB {subtotalTax}</span>
+                </div>
+              </div>
+              <div className="border-t border-gray-200 pt-3">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total to Pay:</span>
+                  <span className="text-gray-900">ETB {subtotalWithTax}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowOrderConfirmation(false)}
+                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+                disabled={orderProcessing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleOrderSubmit}
+                disabled={orderProcessing}
+                className={`flex-1 px-4 py-3 font-medium ${
+                  orderProcessing
+                    ? "bg-gray-300 cursor-not-allowed"
+                    : "bg-black text-white hover:bg-gray-800"
+                }`}
+              >
+                {orderProcessing ? (
+                  <div className="flex items-center justify-center">
+                    <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+                    Processing...
+                  </div>
+                ) : (
+                  "Confirm Order"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications - Minimal Design */}
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-center justify-between min-w-[300px] max-w-md p-4 border transform transition-all duration-300 animate-slideIn ${
+              statusColors[toast.type]
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {toast.type === "success" ? (
+                <CheckCircle className="w-4 h-4" />
+              ) : toast.type === "error" ? (
+                <AlertCircle className="w-4 h-4" />
+              ) : toast.type === "warning" ? (
+                <AlertCircle className="w-4 h-4" />
+              ) : (
+                <AlertCircle className="w-4 h-4" />
+              )}
+              <p className="text-sm font-medium">{toast.message}</p>
+            </div>
+            <button
+              onClick={() => removeToast(toast.id)}
+              className="ml-4 text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.3s ease-out;
+        }
+      `}</style>
+
+      {/* Breadcrumb - Minimal */}
+      <div className="bg-white border-b border-gray-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-4 flex items-center justify-between">
             <div className="flex items-center space-x-2 text-sm">
               <a
                 href="/"
-                className="text-gray-500 hover:text-gray-900 transition-colors"
+                className="text-gray-500 hover:text-black transition-colors font-medium"
               >
                 Home
               </a>
               <span className="text-gray-400">/</span>
               <a
                 href="/products"
-                className="text-gray-500 hover:text-gray-900 transition-colors"
+                className="text-gray-500 hover:text-black transition-colors font-medium"
               >
                 Products
               </a>
               <span className="text-gray-400">/</span>
-              <span className="text-gray-900 font-medium truncate max-w-xs">
+              <span className="text-black font-medium truncate max-w-xs">
                 {product.name}
               </span>
             </div>
 
             <div className="flex items-center space-x-4">
-              <button className="flex items-center text-gray-500 hover:text-gray-900 text-sm transition-colors">
+              <button className="flex items-center text-gray-500 hover:text-black text-sm transition-colors font-medium">
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 <span>Prev</span>
               </button>
-              <button className="flex items-center text-gray-500 hover:text-gray-900 text-sm transition-colors">
+              <button className="flex items-center text-gray-500 hover:text-black text-sm transition-colors font-medium">
                 <span>Next</span>
                 <ChevronRight className="w-4 h-4 ml-1" />
               </button>
@@ -313,603 +563,419 @@ export default function ProductPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 p-8">
-            {/* Product Images Section */}
-            <div className="space-y-4">
-              <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden flex items-center justify-center">
-                {images.length > 0 ? (
-                  <img
-                    src={images[activeImage]}
-                    alt={product.name}
-                    className="w-full h-full object-contain p-4"
-                  />
-                ) : (
-                  <div className="text-center p-8">
-                    <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">No image available</p>
-                  </div>
-                )}
-              </div>
-
-              {images.length > 1 && (
-                <div className="flex space-x-3 overflow-x-auto pb-2">
-                  {images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveImage(idx)}
-                      className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
-                        activeImage === idx
-                          ? "border-amber-600 shadow-sm"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <img
-                        src={img}
-                        alt={`${product.name} ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Product Details Section */}
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-semibold text-gray-900 mb-2">
-                  {product.name}
-                </h1>
-
-                <div className="flex items-center space-x-4 mb-4">
-                  <div className="flex items-center">
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-5 h-5 ${
-                            i < 4
-                              ? "text-amber-500 fill-current"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="ml-2 text-sm text-gray-600">
-                      (2 reviews)
-                    </span>
-                  </div>
-
-                  {product.stock > 0 ? (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      In Stock
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      Out of Stock
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-4xl font-bold text-amber-600 mb-6">
-                  ETB {product.price}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">
-                  Description
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {product.description || "No description available."}
-                </p>
-              </div>
-
-              {/* Color Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Color
-                </label>
-                <div className="flex space-x-3">
-                  {images.slice(0, 2).map((img, idx) => (
-                    <button
-                      key={idx}
-                      className={`w-12 h-12 rounded-lg overflow-hidden border-2 ${
-                        idx === 0 ? "border-amber-600" : "border-gray-300"
-                      }`}
-                    >
-                      <img
-                        src={img}
-                        alt="Color option"
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Location Selection */}
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Delivery Location
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <select
-                      value={selectedSubCity?.id || ""}
-                      onChange={(e) => {
-                        const subCity = subCities.find(
-                          (sc) => sc.id === parseInt(e.target.value)
-                        );
-                        setSelectedSubCity(subCity || null);
-                      }}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    >
-                      <option value="">Select Sub-city</option>
-                      {subCities.map((sc) => (
-                        <option key={sc.id} value={sc.id}>
-                          {sc.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      placeholder="City"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <input
-                      type="text"
-                      value={region}
-                      onChange={(e) => setRegion(e.target.value)}
-                      placeholder="Region"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Quantity and Price */}
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Quantity
-                </label>
-                <div className="flex items-center space-x-6">
-                  <div className="flex items-center border border-gray-300 rounded-lg">
-                    <button
-                      onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                      className="px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      value={quantity}
-                      min="1"
-                      max={product.stock}
-                      onChange={(e) =>
-                        setQuantity(
-                          Math.min(
-                            product.stock,
-                            Math.max(1, parseInt(e.target.value) || 1)
-                          )
-                        )
-                      }
-                      className="w-20 text-center border-x border-gray-300 py-3 focus:outline-none"
-                    />
-                    <button
-                      onClick={() =>
-                        setQuantity((q) => Math.min(product.stock, q + 1))
-                      }
-                      className="px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <div className="text-lg font-medium text-gray-900">
-                    Subtotal:{" "}
-                    <span className="text-amber-600">
-                      ETB {(parseFloat(product.price) * quantity).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Method */}
-              <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  Payment Method
-                </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setPaymentMethod("cod")}
-                    className={`flex items-center justify-center space-x-2 px-4 py-3 border rounded-lg transition-colors ${
-                      paymentMethod === "cod"
-                        ? "border-amber-600 bg-amber-50 text-amber-700"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                  >
-                    <Truck className="w-5 h-5" />
-                    <span>Cash on Delivery</span>
-                  </button>
-
-                  <button
-                    onClick={() => setPaymentMethod("telebirr")}
-                    className={`flex items-center justify-center space-x-2 px-4 py-3 border rounded-lg transition-colors ${
-                      paymentMethod === "telebirr"
-                        ? "border-amber-600 bg-amber-50 text-amber-700"
-                        : "border-gray-300 hover:border-gray-400"
-                    }`}
-                  >
-                    <Shield className="w-5 h-5" />
-                    <span>TeleBirr</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* TeleBirr Details */}
-              {paymentMethod === "telebirr" && (
-                <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      TeleBirr Transaction Number *
-                    </label>
-                    <input
-                      type="text"
-                      value={telebirrTxn}
-                      onChange={(e) => setTelebirrTxn(e.target.value)}
-                      placeholder="Enter transaction number"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Payment Screenshot (Optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) =>
-                        setScreenshot(e.target.files?.[0] || null)
-                      }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors file:mr-4 file:py-2 file:px-4 file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Location Coordinates */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Latitude
-                  </label>
-                  <input
-                    type="text"
-                    value={latitude}
-                    readOnly
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                    placeholder="Auto-detected"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Longitude
-                  </label>
-                  <input
-                    type="text"
-                    value={longitude}
-                    readOnly
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                    placeholder="Auto-detected"
-                  />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-4">
-                <button
-                  onClick={handleOrder}
-                  disabled={!user || isOwnProduct || product.stock === 0}
-                  className={`w-full flex items-center justify-center space-x-2 px-6 py-4 rounded-lg font-medium text-white transition-colors mb-4 ${
-                    !user || isOwnProduct || product.stock === 0
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : "bg-amber-600 hover:bg-amber-700"
-                  }`}
-                >
-                  <ShoppingCart className="w-5 h-5" />
-                  <span>
-                    {!user
-                      ? "Login to Order"
-                      : isOwnProduct
-                      ? "Your Own Product"
-                      : product.stock === 0
-                      ? "Out of Stock"
-                      : "Add to Cart & Place Order"}
-                  </span>
-                </button>
-
-                <div className="flex items-center justify-center space-x-4">
-                  <button
-                    onClick={() => setIsWishlisted(!isWishlisted)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
-                      isWishlisted
-                        ? "border-amber-600 text-amber-600"
-                        : "border-gray-300 text-gray-600 hover:border-gray-400"
-                    }`}
-                  >
-                    <Heart className="w-5 h-5" />
-                    <span>Wishlist</span>
-                  </button>
-
-                  <button
-                    onClick={() => setIsCompared(!isCompared)}
-                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg border transition-colors ${
-                      isCompared
-                        ? "border-amber-600 text-amber-600"
-                        : "border-gray-300 text-gray-600 hover:border-gray-400"
-                    }`}
-                  >
-                    <RefreshCw className="w-5 h-5" />
-                    <span>Compare</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Order Messages */}
-              {orderMessage && (
-                <div
-                  className={`p-4 rounded-lg ${
-                    orderMessage.includes("successfully")
-                      ? "bg-green-50 border border-green-200 text-green-700"
-                      : "bg-red-50 border border-red-200 text-red-700"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    {orderMessage.includes("successfully") ? (
-                      <CheckCircle className="w-5 h-5" />
-                    ) : (
-                      <AlertCircle className="w-5 h-5" />
-                    )}
-                    <p className="text-sm">{orderMessage}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs Section */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="border-b border-gray-200">
-            <nav className="flex -mb-px">
-              {[
-                { id: "description", label: "Description" },
-                { id: "information", label: "Additional Information" },
-                { id: "shipping", label: "Shipping & Returns" },
-                { id: "reviews", label: "Reviews" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === tab.id
-                      ? "border-amber-600 text-amber-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-
-          <div className="p-8">
-            {/* Description Tab */}
-            {activeTab === "description" && (
-              <div className="space-y-6">
-                <h3 className="text-2xl font-semibold text-gray-900">
-                  Product Information
-                </h3>
-                <div className="prose prose-lg max-w-none text-gray-600">
-                  <p>
-                    {product.description ||
-                      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Product Images Section */}
+          <div className="space-y-4">
+            <div className="aspect-square bg-gray-50 border border-gray-300 flex items-center justify-center">
+              {images.length > 0 ? (
+                <img
+                  src={images[activeImage]}
+                  alt={product.name}
+                  className="w-full h-full object-contain p-8"
+                />
+              ) : (
+                <div className="text-center p-8">
+                  <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 font-medium">
+                    No image available
                   </p>
-                  <ul className="list-disc pl-6 space-y-2">
-                    <li>Premium quality materials</li>
-                    <li>Expert craftsmanship</li>
-                    <li>Durable construction</li>
-                    <li>Easy to maintain</li>
-                  </ul>
                 </div>
+              )}
+            </div>
+
+            {images.length > 1 && (
+              <div className="flex space-x-3 overflow-x-auto pb-2">
+                {images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImage(idx)}
+                    className={`flex-shrink-0 w-20 h-20 border transition-all ${
+                      activeImage === idx
+                        ? "border-black"
+                        : "border-gray-300 hover:border-gray-400"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`${product.name} ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             )}
+          </div>
 
-            {/* Additional Information Tab */}
-            {activeTab === "information" && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                    Specifications
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-600">Material</span>
-                        <span className="font-medium">Premium Fabric</span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-600">Color</span>
-                        <span className="font-medium">As shown</span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-600">Size</span>
-                        <span className="font-medium">Standard</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-600">Weight</span>
-                        <span className="font-medium">1.2 kg</span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-600">Dimensions</span>
-                        <span className="font-medium">30 × 40 × 10 cm</span>
-                      </div>
-                      <div className="flex justify-between py-2 border-b">
-                        <span className="text-gray-600">Warranty</span>
-                        <span className="font-medium">1 Year</span>
-                      </div>
-                    </div>
+          {/* Product Details Section */}
+          <div className="space-y-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {product.name}
+              </h1>
+
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="flex items-center">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-5 h-5 ${
+                          i < 4
+                            ? "text-yellow-500 fill-current"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    ))}
                   </div>
+                  <span className="ml-2 text-sm text-gray-600 font-medium">
+                    (2 reviews)
+                  </span>
                 </div>
+
+                <span
+                  className={`inline-flex items-center px-3 py-1 text-sm font-medium ${stockStatusColor}`}
+                >
+                  <stockStatusIcon className="w-4 h-4 mr-1" />
+                  {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                </span>
               </div>
-            )}
 
-            {/* Shipping & Returns Tab */}
-            {activeTab === "shipping" && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                    Delivery Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                      <Truck className="w-8 h-8 text-amber-600 mb-3" />
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Standard Shipping
-                      </h4>
-                      <p className="text-gray-600 text-sm">3-5 business days</p>
-                      <p className="text-gray-600 text-sm">ETB 50.00</p>
-                    </div>
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                      <Truck className="w-8 h-8 text-amber-600 mb-3" />
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Express Shipping
-                      </h4>
-                      <p className="text-gray-600 text-sm">1-2 business days</p>
-                      <p className="text-gray-600 text-sm">ETB 100.00</p>
-                    </div>
-                    <div className="bg-gray-50 p-6 rounded-lg">
-                      <MapPin className="w-8 h-8 text-amber-600 mb-3" />
-                      <h4 className="font-semibold text-gray-900 mb-2">
-                        Store Pickup
-                      </h4>
-                      <p className="text-gray-600 text-sm">Same day pickup</p>
-                      <p className="text-gray-600 text-sm">Free</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                    Return Policy
-                  </h3>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-                    <div className="flex items-start space-x-3">
-                      <Shield className="w-6 h-6 text-amber-600 mt-1" />
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-2">
-                          30-Day Return Policy
-                        </h4>
-                        <p className="text-gray-600">
-                          We offer a 30-day return policy for all products.
-                          Items must be in original condition with all tags
-                          attached. Refunds will be processed within 5-7
-                          business days after we receive the returned item.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Reviews Tab */}
-            {activeTab === "reviews" && (
-              <div className="space-y-8">
-                <h3 className="text-2xl font-semibold text-gray-900">
-                  Customer Reviews
-                </h3>
-
-                <div className="space-y-6">
-                  {/* Review 1 */}
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">
-                          Sarah M.
-                        </h4>
-                        <div className="flex items-center mt-1">
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-5 h-5 ${
-                                  i < 4
-                                    ? "text-amber-500 fill-current"
-                                    : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="ml-2 text-sm text-gray-500">
-                            2 days ago
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-gray-600">
-                      "Excellent product! The quality exceeded my expectations.
-                      Fast shipping and great customer service."
+              {/* Price Display with Tax */}
+              <div className="mb-6 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-4xl font-bold text-gray-900">
+                      ETB {priceDetails?.totalWithTax}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Total with 15% VAT included
                     </p>
                   </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Receipt className="w-4 h-4" />
+                    <span>VAT incl.</span>
+                  </div>
+                </div>
 
-                  {/* Review 2 */}
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">John D.</h4>
-                        <div className="flex items-center mt-1">
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star
-                                key={i}
-                                className={`w-5 h-5 ${
-                                  i < 5
-                                    ? "text-amber-500 fill-current"
-                                    : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="ml-2 text-sm text-gray-500">
-                            1 week ago
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="text-gray-600">
-                      "Perfect fit and great quality. Would definitely recommend
-                      to friends and family!"
-                    </p>
+                {/* Price Breakdown */}
+                <div className="text-sm text-gray-600 space-y-1 bg-gray-50 p-3 rounded border border-gray-200">
+                  <div className="flex justify-between">
+                    <span>Base Price:</span>
+                    <span>ETB {priceDetails?.basePrice}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>VAT (15%):</span>
+                    <span className="text-[#EF837B]">
+                      + ETB {priceDetails?.tax}
+                    </span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-1 mt-1 flex justify-between font-medium">
+                    <span>Final Price:</span>
+                    <span className="text-gray-900">
+                      ETB {priceDetails?.totalWithTax}
+                    </span>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-3">
+                Description
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                {product.description || "No description available."}
+              </p>
+            </div>
+
+            {/* Color Selection */}
+            <div>
+              <label className="block text-sm font-bold text-gray-900 mb-3">
+                Color
+              </label>
+              <div className="flex space-x-3">
+                {images.slice(0, 2).map((img, idx) => (
+                  <button
+                    key={idx}
+                    className={`w-12 h-12 border-2 ${
+                      idx === 0 ? "border-black" : "border-gray-300"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt="Color option"
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Location Selection */}
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-900">
+                Delivery Location
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <select
+                    value={selectedSubCity?.id || ""}
+                    onChange={(e) => {
+                      const subCity = subCities.find(
+                        (sc) => sc.id === parseInt(e.target.value)
+                      );
+                      setSelectedSubCity(subCity || null);
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:ring-0 transition-colors font-medium"
+                  >
+                    <option value="">Select Sub-city</option>
+                    {subCities.map((sc) => (
+                      <option key={sc.id} value={sc.id}>
+                        {sc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="City"
+                    className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:ring-0 transition-colors font-medium"
+                  />
+                </div>
+
+                <div>
+                  <input
+                    type="text"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    placeholder="Region"
+                    className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:ring-0 transition-colors font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Quantity and Price */}
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-900">
+                Quantity
+              </label>
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center border border-gray-300">
+                  <button
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="px-4 py-3 text-gray-600 hover:text-black hover:bg-gray-50 transition-colors"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    value={quantity}
+                    min="1"
+                    max={product.stock}
+                    onChange={(e) =>
+                      setQuantity(
+                        Math.min(
+                          product.stock,
+                          Math.max(1, parseInt(e.target.value) || 1)
+                        )
+                      )
+                    }
+                    className="w-20 text-center border-x border-gray-300 py-3 focus:outline-none font-medium"
+                  />
+                  <button
+                    onClick={() =>
+                      setQuantity((q) => Math.min(product.stock, q + 1))
+                    }
+                    className="px-4 py-3 text-gray-600 hover:text-black hover:bg-gray-50 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+
+                {/* Quantity Price Summary */}
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="font-medium">ETB {subtotalPrice}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">VAT (15%):</span>
+                    <span className="font-medium text-[#EF837B]">
+                      + ETB {subtotalTax}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-bold border-t border-gray-200 pt-1">
+                    <span>Total:</span>
+                    <span className="text-lg text-gray-900">
+                      ETB {subtotalWithTax}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div className="space-y-3">
+              <label className="block text-sm font-bold text-gray-900">
+                Payment Method
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`flex items-center justify-center space-x-2 px-4 py-3 border transition-colors ${
+                    paymentMethod === "cod"
+                      ? "border-black bg-black text-white"
+                      : "border-gray-300 hover:border-black text-gray-700"
+                  }`}
+                >
+                  <Truck className="w-5 h-5" />
+                  <span>Cash on Delivery</span>
+                </button>
+
+                <button
+                  onClick={() => setPaymentMethod("telebirr")}
+                  className={`flex items-center justify-center space-x-2 px-4 py-3 border transition-colors ${
+                    paymentMethod === "telebirr"
+                      ? "border-black bg-black text-white"
+                      : "border-gray-300 hover:border-black text-gray-700"
+                  }`}
+                >
+                  <Shield className="w-5 h-5" />
+                  <span>TeleBirr</span>
+                </button>
+              </div>
+            </div>
+
+            {/* TeleBirr Details */}
+            {paymentMethod === "telebirr" && (
+              <div className="space-y-4 p-4 border border-gray-300">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    TeleBirr Transaction Number *
+                  </label>
+                  <input
+                    type="text"
+                    value={telebirrTxn}
+                    onChange={(e) => setTelebirrTxn(e.target.value)}
+                    placeholder="Enter transaction number"
+                    className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:ring-0 transition-colors font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Payment Screenshot (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
+                    className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:ring-0 transition-colors font-medium file:mr-4 file:py-2 file:px-4 file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  />
+                </div>
+              </div>
             )}
+
+            {/* Location Coordinates */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Latitude
+                </label>
+                <input
+                  type="text"
+                  value={latitude}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 bg-gray-50 text-gray-500 font-medium"
+                  placeholder="Auto-detected"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Longitude
+                </label>
+                <input
+                  type="text"
+                  value={longitude}
+                  readOnly
+                  className="w-full px-4 py-3 border border-gray-300 bg-gray-50 text-gray-500 font-medium"
+                  placeholder="Auto-detected"
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="pt-4">
+              <button
+                onClick={handleOrderClick}
+                disabled={!user || isOwnProduct || product.stock === 0}
+                className={`w-full flex items-center justify-center space-x-2 px-6 py-4 font-bold transition-colors mb-4 ${
+                  !user || isOwnProduct || product.stock === 0
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-black text-white hover:bg-gray-800"
+                }`}
+              >
+                <ShoppingCart className="w-5 h-5" />
+                <span>
+                  {!user
+                    ? "Login to Order"
+                    : isOwnProduct
+                    ? "Your Own Product"
+                    : product.stock === 0
+                    ? "Out of Stock"
+                    : "Add to Cart & Place Order"}
+                </span>
+              </button>
+
+              <div className="flex items-center justify-center space-x-4">
+                <button
+                  onClick={() => {
+                    setIsWishlisted(!isWishlisted);
+                    addToast(
+                      isWishlisted
+                        ? "Removed from wishlist"
+                        : "Added to wishlist",
+                      "info"
+                    );
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 border transition-colors ${
+                    isWishlisted
+                      ? "border-red-500 text-red-500"
+                      : "border-gray-300 text-gray-700 hover:border-black hover:text-black"
+                  }`}
+                >
+                  <Heart
+                    className={`w-5 h-5 ${isWishlisted ? "fill-current" : ""}`}
+                  />
+                  <span>Wishlist</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsCompared(!isCompared);
+                    addToast(
+                      isCompared
+                        ? "Removed from comparison"
+                        : "Added to comparison",
+                      "info"
+                    );
+                  }}
+                  className={`flex items-center space-x-2 px-4 py-2 border transition-colors ${
+                    isCompared
+                      ? "border-blue-500 text-blue-500"
+                      : "border-gray-300 text-gray-700 hover:border-black hover:text-black"
+                  }`}
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  <span>Compare</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </main>

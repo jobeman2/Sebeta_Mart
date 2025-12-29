@@ -21,12 +21,13 @@ import {
 
 interface Props {
   onShopCreated: (seller: any) => void;
-  existingShop?: any; // Pass existing shop data if shop exists
+  existingShop?: any;
 }
 
 export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
   const { user, loading } = useContext(AuthContext);
   const router = useRouter();
+
   const [shopName, setShopName] = useState("");
   const [shopDesc, setShopDesc] = useState("");
   const [shopAddress, setShopAddress] = useState("");
@@ -38,6 +39,11 @@ export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
   const [success, setSuccess] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    if (!loading && user && user.role !== "seller") {
+    }
+  }, [user, loading, router]);
 
   // Pre-fill form if editing existing shop
   useEffect(() => {
@@ -68,6 +74,12 @@ export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
       return;
     }
 
+    // 🔒 FINAL SAFETY CHECK
+    if (user.role !== "seller") {
+      setError("Access denied. Only sellers can create or edit a shop.");
+      return;
+    }
+
     if (!shopName.trim()) {
       setError("Shop name is required");
       return;
@@ -76,7 +88,6 @@ export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
     setFormLoading(true);
     setCurrentStep(1);
 
-    // Simulate progress steps
     const steps = [1, 2, 3, 4];
     for (let i = 0; i < steps.length; i++) {
       await new Promise((resolve) => setTimeout(resolve, 400));
@@ -107,15 +118,14 @@ export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
 
       if (!res.ok) {
         throw new Error(data.message || "Failed to process your request");
-      } else {
-        setSuccess(true);
-        onShopCreated(data);
-
-        // Redirect after success
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 2000);
       }
+
+      setSuccess(true);
+      onShopCreated(data);
+
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 2000);
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -124,71 +134,6 @@ export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
     }
   };
 
-  const formFields = [
-    {
-      id: "shopName",
-      label: "Shop Name",
-      placeholder: "Enter a memorable shop name",
-      value: shopName,
-      onChange: setShopName,
-      icon: Store,
-      required: true,
-      description: "This will be your public storefront name",
-    },
-    {
-      id: "shopDesc",
-      label: "Shop Description",
-      placeholder:
-        "What makes your shop special? Describe your products and values...",
-      value: shopDesc,
-      onChange: setShopDesc,
-      icon: FileText,
-      required: false,
-      description: "Help customers understand your business",
-      type: "textarea",
-    },
-    {
-      id: "shopAddress",
-      label: "Shop Address",
-      placeholder: "Enter your business address",
-      value: shopAddress,
-      onChange: setShopAddress,
-      icon: MapPin,
-      required: false,
-      description: "For order fulfillment and customer trust",
-    },
-    {
-      id: "businessLicense",
-      label: "Business License",
-      placeholder: "Business license number",
-      value: businessLicense,
-      onChange: setBusinessLicense,
-      icon: Building,
-      required: false,
-      description: "Required for verification",
-    },
-    {
-      id: "governmentId",
-      label: "Government ID",
-      placeholder: "Government issued ID number",
-      value: governmentId,
-      onChange: setGovernmentId,
-      icon: Shield,
-      required: false,
-      description: "For official verification",
-    },
-    {
-      id: "nationalId",
-      label: "National ID",
-      placeholder: "National identification number",
-      value: nationalId,
-      onChange: setNationalId,
-      icon: IdCard,
-      required: false,
-      description: "Additional identity verification",
-    },
-  ];
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -196,6 +141,39 @@ export default function CreateShopForm({ onShopCreated, existingShop }: Props) {
           <div className="w-16 h-16 border-4 border-[#3399FF]/20 border-t-[#3399FF] rounded-full animate-spin mx-auto"></div>
           <p className="text-gray-600">Loading your information...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <User className="w-12 h-12 text-gray-400" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-900 mb-3">
+          Login Required
+        </h3>
+        <p className="text-gray-600 mb-6">Please sign in to create your shop</p>
+        <button
+          onClick={() => router.push("/auth/login")}
+          className="px-6 py-3 bg-[#3399FF] text-white rounded-lg hover:bg-[#2980d6]"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
+  // 🚫 ACCESS DENIED UI
+  if (user.role !== "seller") {
+    return (
+      <div className="text-center py-20">
+        <XCircle className="w-14 h-14 text-red-500 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+        <p className="text-gray-600">
+          Only seller accounts can create or manage shops.
+        </p>
       </div>
     );
   }

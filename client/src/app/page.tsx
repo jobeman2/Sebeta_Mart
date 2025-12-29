@@ -4,7 +4,7 @@ import Navbar from "@/components/Layout/Navbar/Navbar";
 import ShopSocial from "@/components/Layout/ShopSocial";
 import TopHeader from "@/components/Layout/Topheader/Topheader";
 import DeliveryBanner from "@/components/Layout/banner";
-import Header from "@/components/UI/header";
+import Header from "@/context/UI/header";
 import Hero from "@/components/sections/Hero/Hero";
 import Categories from "@/components/sections/categories/Categories";
 import ProductsGrid from "@/components/sections/products/Products";

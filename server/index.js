@@ -8,10 +8,12 @@ const pool = require("./config/db"); // Postgres connection
 const app = express();
 
 // Middlewares
-app.use(cors({
-  origin: "http://localhost:3000", // frontend URL
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "http://localhost:3000", // frontend URL
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -36,11 +38,17 @@ const deliveryCompleteRoutes = require("./routes/delivery/complete");
 app.use("/delivery/complete", deliveryCompleteRoutes);
 const buyerOrderRoute = require("./routes/buyer/order");
 app.use("/buyer/orders", buyerOrderRoute);
-app.use("/seller/orders", require("./routes/seller/orders")); 
+app.use("/seller/orders", require("./routes/seller/orders"));
 app.use("/buyer/favorites", require("./routes/buyer/fav"));
 app.use("/admin/dashboard", require("./routes/admin/dashboard"));
 app.use("/admin/buyers", require("./routes/admin/buyers"));
 app.use("/admin/sellers", require("./routes/admin/sellers"));
+app.use("/admin/transactions", require("./routes/admin/transactions"));
+app.use("/admin/register-user", require("./routes/admin/registerUser"));
+app.use(
+  "/admin/delivery_profiles",
+  require("./routes/admin/delivery_profiles")
+);
 app.use("/search", require("./routes/search/search"));
 // NEW: All products route for frontend product listing
 app.use("/productlist", require("./routes/product/productlist"));

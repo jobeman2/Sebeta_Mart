@@ -6,6 +6,7 @@ import {
   Truck,
   TrendingUp,
   Package,
+  Percent,
 } from "lucide-react";
 
 interface StatsCardsProps {
@@ -19,6 +20,10 @@ interface StatsCardsProps {
 }
 
 export default function StatsCards({ stats }: StatsCardsProps) {
+  // Calculate tax as 15% of total revenue
+  const taxAmount = stats.totalRevenue * 0.15;
+  const taxPercentage = 15; // Fixed 15% tax rate
+
   const cards = [
     {
       title: "Total Orders",
@@ -48,13 +53,16 @@ export default function StatsCards({ stats }: StatsCardsProps) {
       textColor: "text-gray-800",
     },
     {
-      title: "Conversion Rate",
-      value: `${stats.conversionRate}%`,
-      icon: <TrendingUp className="w-5 h-5" />,
-      change: `ETB ${stats.avgOrderValue.toFixed(0)} avg`,
-      color: "bg-emerald-500",
-      bgColor: "bg-emerald-50",
-      textColor: "text-emerald-600",
+      title: "Tax (15%)",
+      value: `ETB ${taxAmount.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`,
+      icon: <Percent className="w-5 h-5" />,
+      change: `${taxPercentage}% of revenue`,
+      color: "bg-[#FF6B6B]",
+      bgColor: "bg-[#FF6B6B]/10",
+      textColor: "text-[#FF6B6B]",
     },
   ];
 
@@ -83,20 +91,24 @@ export default function StatsCards({ stats }: StatsCardsProps) {
             <p className="text-sm text-gray-500">{card.title}</p>
           </div>
 
-          {/* Progress bar for conversion rate */}
+          {/* Progress bar for tax (showing 15% fixed rate) */}
           {index === 3 && (
             <div className="mt-4">
               <div className="flex justify-between text-xs text-gray-500 mb-1">
-                <span>Target: 5%</span>
-                <span>{stats.conversionRate}%</span>
+                <span>Tax Rate</span>
+                <span>{taxPercentage}%</span>
               </div>
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${card.color} rounded-full`}
                   style={{
-                    width: `${Math.min(stats.conversionRate * 20, 100)}%`,
+                    width: `${taxPercentage}%`,
                   }}
                 ></div>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Calculated from ETB {stats.totalRevenue.toLocaleString()}{" "}
+                revenue
               </div>
             </div>
           )}

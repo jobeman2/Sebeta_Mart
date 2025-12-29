@@ -20,7 +20,13 @@ router.get("/", auth, async (req, res) => {
     };
 
     // COMMON QUERIES
-    const [totalSellersRes, pendingApprovalsRes, totalBuyersRes, activeTransactionsRes, activeListingsRes] = await Promise.all([
+    const [
+      totalSellersRes,
+      pendingApprovalsRes,
+      totalBuyersRes,
+      activeTransactionsRes,
+      activeListingsRes,
+    ] = await Promise.all([
       pool.query("SELECT COUNT(*) FROM sellers"),
       pool.query("SELECT COUNT(*) FROM sellers WHERE is_verified = false"),
       pool.query("SELECT COUNT(*) FROM users WHERE role = 'buyer'"),
@@ -36,7 +42,9 @@ router.get("/", auth, async (req, res) => {
     data.activeListings = Number(activeListingsRes.rows[0].count);
 
     if (role === "admin") {
-      const cityClerksRes = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'city-clerk'");
+      const cityClerksRes = await pool.query(
+        "SELECT COUNT(*) FROM users WHERE role = 'city-clerk'"
+      );
       data.cityClerks = Number(cityClerksRes.rows[0].count);
       data.recentActivities = 0;
     } else if (role === "city-clerk") {
