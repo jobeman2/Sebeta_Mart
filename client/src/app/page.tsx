@@ -18,7 +18,6 @@ export default function Home() {
       <ProductsGrid />
       <CtaSection />
       <DeliveryBanner />
-      <ShopSocial />
     </div>
   );
 }
