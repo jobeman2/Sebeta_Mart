@@ -54,7 +54,8 @@ app.use("/search", require("./routes/search/search"));
 app.use("/productlist", require("./routes/product/productlist"));
 app.use("/subcities", require("./routes/subcity"));
 
-// Import auth middleware
+// Import auth middleware for auth
+
 const auth = require("./middleware/auth");
 
 // Protected dashboard route
