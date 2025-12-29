@@ -30,51 +30,69 @@ export default function TopHeader() {
   return (
     <div className="w-full bg-[#F5F6F9] font-dm-sans text-gray-700 text-sm">
       <div className="max-w-7xl mx-auto flex justify-between items-center px-4 py-2">
-        {/* Left Section - Contact */}
-        <div className="flex items-center gap-2">
-          <Phone className="w-4 h-4 text-gray-600" />
-          <span>+251 4665 1200</span>
-        </div>
+        {/* Left Section */}
+        {loading ? (
+          <div className="flex items-center gap-2 animate-pulse">
+            <div className="w-4 h-4 bg-gray-300 rounded-full" />
+            <div className="w-28 h-3 bg-gray-300 rounded" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Phone className="w-4 h-4 text-gray-600" />
+            <span>+251 4665 1200</span>
+          </div>
+        )}
 
-        {/* Right Section - Auth / Lang */}
-        <div className="flex items-center gap-4">
-          <select className="bg-transparent outline-none cursor-pointer">
-            <option value="en">ENG</option>
-            <option value="oro">ORO</option>
-          </select>
-          <span className="text-gray-400">|</span>
+        {/* Right Section */}
+        {loading ? (
+          <div className="flex items-center gap-4 animate-pulse">
+            <div className="w-10 h-3 bg-gray-300 rounded" />
+            <div className="h-4 w-px bg-gray-300" />
+            <div className="w-20 h-3 bg-gray-300 rounded" />
+            <div className="h-4 w-px bg-gray-300" />
+            <div className="w-20 h-3 bg-gray-300 rounded" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-4">
+            <select className="bg-transparent outline-none cursor-pointer">
+              <option value="en">ENG</option>
+              <option value="oro">ORO</option>
+            </select>
 
-          {loading ? (
-            <div className="h-5 w-24 bg-gray-200 animate-pulse rounded"></div>
-          ) : user ? (
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="flex items-center gap-1 hover:underline"
-            >
-              <LogOut className="w-4 h-4" />
-              {isLoggingOut ? "Logging out..." : "Logout"}
-            </button>
-          ) : (
-            <>
-              <Link
-                href="/auth/register"
+            <span className="text-gray-400">|</span>
+
+            {user ? (
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
                 className="flex items-center gap-1 hover:underline"
               >
-                <UserPlus className="w-4 h-4" />
-                Sign Up
-              </Link>
-              <span className="text-gray-400">|</span>
-              <Link
-                href="/auth/login"
-                className="flex items-center gap-1 hover:underline"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In
-              </Link>
-            </>
-          )}
-        </div>
+                <LogOut className="w-4 h-4" />
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </button>
+            ) : (
+              <>
+                <Link
+                  href="/auth/register"
+                  className="flex items-center gap-1 hover:underline"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Sign Up
+                </Link>
+
+                <span className="text-gray-400">|</span>
+
+                <Link
+                  href="/auth/login"
+                  className="flex items-center gap-1 hover:underline"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign In
+                </Link>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
