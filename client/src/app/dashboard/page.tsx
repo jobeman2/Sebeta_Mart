@@ -16,7 +16,13 @@ export default function Dashboard() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<
-    "overview" | "orders" | "wishlist" | "shop" | "account" | "notifications" | "add product"
+    | "overview"
+    | "orders"
+    | "wishlist"
+    | "shop"
+    | "account"
+    | "notifications"
+    | "add product"
   >("overview");
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [seller, setSeller] = useState<any>(null);
@@ -25,12 +31,26 @@ export default function Dashboard() {
   const [sellerOrdersLoading, setSellerOrdersLoading] = useState(true);
 
   const [notifications] = useState([
-    { id: "1", message: "Your order ORD-1002 is now in transit.", date: "Oct 22, 2025", read: false },
-    { id: "2", message: "Your wishlist item 'Cheese Combo' is on sale!", date: "Oct 21, 2025", read: true },
-    { id: "3", message: "Password changed successfully.", date: "Oct 20, 2025", read: true },
+    {
+      id: "1",
+      message: "Your order ORD-1002 is now in transit.",
+      date: "Oct 22, 2025",
+      read: false,
+    },
+    {
+      id: "2",
+      message: "Your wishlist item 'Cheese Combo' is on sale!",
+      date: "Oct 21, 2025",
+      read: true,
+    },
+    {
+      id: "3",
+      message: "Password changed successfully.",
+      date: "Oct 20, 2025",
+      read: true,
+    },
   ]);
 
-  // 🔐 Redirect if not logged in
   useEffect(() => {
     if (!loading && !user) router.push("/auth/login");
   }, [user, loading, router]);
@@ -41,7 +61,9 @@ export default function Dashboard() {
 
     const fetchSeller = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/sellers/${user.id}`, { credentials: "include" });
+        const res = await fetch(`http://localhost:5000/sellers/${user.id}`, {
+          credentials: "include",
+        });
         if (res.ok) setSeller(await res.json());
         else setSeller(null);
       } catch (err) {
@@ -65,9 +87,12 @@ export default function Dashboard() {
 
     const fetchSellerOrders = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/sellerOrders/${seller.id}`, {
-          credentials: "include",
-        });
+        const res = await fetch(
+          `http://localhost:5000/sellerOrders/${seller.id}`,
+          {
+            credentials: "include",
+          }
+        );
         if (!res.ok) throw new Error("Failed to fetch seller orders");
         const data = await res.json();
         setSellerOrders(data);
@@ -94,20 +119,30 @@ export default function Dashboard() {
   // Tabs based on role
   const tabs =
     user.role === "seller"
-      ? ["overview", "orders", "add product", "shop", "account", "notifications"]
+      ? [
+          "overview",
+          "orders",
+          "add product",
+          "shop",
+          "account",
+          "notifications",
+        ]
       : ["overview", "orders", "wishlist", "account", "notifications"];
 
   const handleShopCreated = (newSeller: any) => setSeller(newSeller);
 
   // Metrics
   const totalOrders = sellerOrders.length;
-  const activeDeliveries = sellerOrders.filter((o) => o.status !== "Delivered").length;
-  const totalRevenue = sellerOrders.reduce((sum, o) => sum + o.total_price, 0).toFixed(2);
+  const activeDeliveries = sellerOrders.filter(
+    (o) => o.status !== "Delivered"
+  ).length;
+  const totalRevenue = sellerOrders
+    .reduce((sum, o) => sum + o.total_price, 0)
+    .toFixed(2);
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] text-gray-900">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-12 gap-8">
-
         {/* Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -129,13 +164,29 @@ export default function Dashboard() {
 
           {/* Metrics */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <MetricCard icon={ShoppingBag} label="Total Orders" value={totalOrders.toString()} />
-            <MetricCard icon={Truck} label="Active Deliveries" value={activeDeliveries.toString()} />
-            <MetricCard icon={CreditCard} label="Total Earned" value={`ETB ${totalRevenue}`} />
+            <MetricCard
+              icon={ShoppingBag}
+              label="Total Orders"
+              value={totalOrders.toString()}
+            />
+            <MetricCard
+              icon={Truck}
+              label="Active Deliveries"
+              value={activeDeliveries.toString()}
+            />
+            <MetricCard
+              icon={CreditCard}
+              label="Total Earned"
+              value={`ETB ${totalRevenue}`}
+            />
             <MetricCard
               icon={Heart}
               label={user.role === "seller" ? "Shop Items" : "Wishlist"}
-              value={user.role === "seller" && seller ? seller.products_count?.toString() || "0" : "3"}
+              value={
+                user.role === "seller" && seller
+                  ? seller.products_count?.toString() || "0"
+                  : "3"
+              }
             />
           </div>
 
@@ -183,7 +234,8 @@ export default function Dashboard() {
                     onClick={() => setActiveTab("orders")}
                     className="text-left px-3 py-2 rounded-md hover:bg-gray-50 flex items-center gap-2 transition"
                   >
-                    <ShoppingBag className="w-4 h-4 text-[#3399FF]" /> View Orders
+                    <ShoppingBag className="w-4 h-4 text-[#3399FF]" /> View
+                    Orders
                   </button>
                   {user.role === "seller" && (
                     <button
@@ -197,7 +249,9 @@ export default function Dashboard() {
               </Card>
 
               <Card>
-                <h4 className="text-sm font-semibold mb-2">Recent Notifications 🔔</h4>
+                <h4 className="text-sm font-semibold mb-2">
+                  Recent Notifications 🔔
+                </h4>
                 <ul className="space-y-2 text-sm">
                   {notifications.slice(0, 3).map((n) => (
                     <li key={n.id} className="text-gray-700">

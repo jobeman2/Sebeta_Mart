@@ -13,7 +13,9 @@ export default function Hero() {
       if (i <= Math.floor(rating)) {
         stars.push(<Star key={i} className="w-5 h-5 text-yellow-400 inline" />);
       } else if (i - rating < 1) {
-        stars.push(<StarHalf key={i} className="w-5 h-5 text-yellow-400 inline" />);
+        stars.push(
+          <StarHalf key={i} className="w-5 h-5 text-yellow-400 inline" />
+        );
       } else {
         stars.push(<Star key={i} className="w-5 h-5 text-gray-300 inline" />);
       }
@@ -25,7 +27,6 @@ export default function Hero() {
     <section className="relative bg-gradient-to-r from-[#f0f8ff] via-[#ffffff] to-[#f0f8ff] overflow-hidden">
       {/* Hero Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-8 py-6 lg:py-12 relative z-10">
-        
         {/* Left: Product Image */}
         <div className="flex-1 relative w-full lg:w-1/2 h-72 sm:h-80 lg:h-96 transform transition-transform hover:scale-105">
           <Image
@@ -42,10 +43,12 @@ export default function Hero() {
             New Arrival
           </span>
           <h2 className="text-3xl sm:text-5xl font-extrabold text-gray-900 leading-tight">
-            Experience Next-Level <br className="hidden sm:block" /> Sound Quality
+            Experience Next-Level <br className="hidden sm:block" /> Sound
+            Quality
           </h2>
           <p className="text-md sm:text-lg text-gray-700 max-w-md mx-auto lg:mx-0">
-            Premium Headphones crafted for music lovers. Clear highs, deep bass, and all-day comfort.
+            Premium Headphones crafted for music lovers. Clear highs, deep bass,
+            and all-day comfort.
           </p>
 
           {/* Ratings */}
@@ -58,7 +61,8 @@ export default function Hero() {
             ETB 200.99
           </p>
           <button className="mt-4 inline-flex items-center gap-3 bg-[#3399FF] text-white px-6 py-3 text-sm rounded-full text-lg font-semibold shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300">
-            <ShoppingCart className="w-5 h-5" /> Shop Now <ArrowRight className="w-4 h-4" />
+            <ShoppingCart className="w-5 h-5" /> Shop Now{" "}
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -80,11 +84,20 @@ export default function Hero() {
       {/* Tailwind Keyframes for floating animations */}
       <style jsx>{`
         @keyframes float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-15px); }
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-15px);
+          }
         }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-float-slow { animation: float 10s ease-in-out infinite; }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-float-slow {
+          animation: float 10s ease-in-out infinite;
+        }
       `}</style>
     </section>
   );

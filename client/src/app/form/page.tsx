@@ -1,6 +1,6 @@
 "use client";
 
-import Header from "@/components/UI/header";
+import Header from "@/context/UI/header";
 import React, { useEffect, useState } from "react";
 
 type User = {
@@ -43,7 +43,9 @@ export default function UsersPage() {
     fetchUsers();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -97,7 +99,7 @@ export default function UsersPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <Header/>
+      <Header />
       <h1 className="text-2xl font-bold mb-4">Users List</h1>
 
       {loading ? (
@@ -122,7 +124,9 @@ export default function UsersPage() {
                 <td className="border border-gray-300 p-2">{user.full_name}</td>
                 <td className="border border-gray-300 p-2">{user.email}</td>
                 <td className="border border-gray-300 p-2">{user.role}</td>
-                <td className="border border-gray-300 p-2">{user.phone_number}</td>
+                <td className="border border-gray-300 p-2">
+                  {user.phone_number}
+                </td>
               </tr>
             ))}
           </tbody>
