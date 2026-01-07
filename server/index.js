@@ -8,22 +8,51 @@ const pool = require("./config/db"); // Postgres connection
 const app = express();
 
 // Middlewares
-app.use(cors({
-  origin: "http://localhost:3000", // frontend URL
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: "http://localhost:3000", // frontend URL
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
 // Serve static files (images in uploads folder)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 // Routes
 app.use("/auth/register", require("./routes/auth/register"));
 app.use("/auth/login", require("./routes/auth/login"));
 app.use("/auth/logout", require("./routes/auth/logout"));
 app.use("/sellers", require("./routes/seller/seller"));
 app.use("/products", require("./routes/product/products"));
+app.use("/categories", require("./routes/product/categories"));
+app.use("/subcategories", require("./routes/product/subcategories"));
+app.use("/brands", require("./routes/product/brands"));
+app.use("/product", require("./routes/product/singleproduct"));
+app.use("/orders", require("./routes/orders/orders"));
+app.use("/sellerOrders", require("./routes/orders/sellerOrders"));
+app.use("/singleorder", require("./routes/orders/singleOrder"));
+app.use("/delivery", require("./routes/delivery/delivery"));
+app.use("/delivery", require("./routes/delivery/assignments"));
+const deliveryCompleteRoutes = require("./routes/delivery/complete");
+app.use("/delivery/complete", deliveryCompleteRoutes);
+const buyerOrderRoute = require("./routes/buyer/order");
+app.use("/buyer/orders", buyerOrderRoute);
+app.use("/seller/orders", require("./routes/seller/orders"));
+app.use("/buyer/favorites", require("./routes/buyer/fav"));
+app.use("/admin/dashboard", require("./routes/admin/dashboard"));
+app.use("/admin/buyers", require("./routes/admin/buyers"));
+app.use("/admin/sellers", require("./routes/admin/sellers"));
+app.use("/admin/transactions", require("./routes/admin/transactions"));
+app.use("/admin/register-user", require("./routes/admin/registerUser"));
+app.use(
+  "/admin/delivery_profiles",
+  require("./routes/admin/delivery_profiles")
+);
+app.use("/search", require("./routes/search/search"));
+// NEW: All products route for frontend product listing
+app.use("/productlist", require("./routes/product/productlist"));
+app.use("/subcities", require("./routes/subcity"));
 
 // Import auth middleware
 const auth = require("./middleware/auth");
